@@ -1,4 +1,5 @@
 import os
+from openpyxl.worksheet.datavalidation import DataValidation
 import getPDFInfo
 import openpyxl
 
@@ -9,7 +10,7 @@ def check_num_cotiz(directory):
         if file_name.endswith(".xlsx"):
             excel_files.append(os.path.join(directory, file_name))
     if len(excel_files) > 10:
-        excel_files.sort(key=os.path.getmtime)
+        excel_files = excel_files.sort(key=os.path.getmtime)
         for i in range(5):
             os.remove(excel_files[i])
 
@@ -21,30 +22,39 @@ def check_num_cotiz(directory):
 def inset_data_in_excel(ws, pdf_names, pdf_pages, pdf_size):
     items = len(pdf_names)
     for i in range(items):
-        if i ==0:
-            ws.cell(row=6, column=2).value = 1
-            ws.cell(row=6, column=3).value = pdf_names[i]
-            ws.cell(row=6, column=4).value = pdf_pages[i]
-            ws.cell(row=6, column=5).value = pdf_size[i]
-            ws.cell(row=6, column=6).value = "Blanco y negro"
-        elif i == items-1:
-            ws.cell(row=6+i, column=2).value = i+1
-            ws.cell(row=6+i, column=3).value = pdf_names[i]
-            ws.cell(row=6+i, column=4).value = pdf_pages[i]
-            ws.cell(row=6+i, column=5).value = pdf_size[i]
-            ws.cell(row=6+i, column=6).value = "Blanco y negro"
-        else:
-            ws.insert_rows(6+i)
+        if i != 0 and i!=items-1:
+            # If we are not in the first row, we need to insert a row ans copy styles
+            ws.insert_rows(7)
             #copy format ans style from row 6
-            for j in range(1, 7):
+            for j in range(1, 14):
                 ws.cell(row=6+i, column=j).value = ws.cell(row=6, column=j).value
                 ws.cell(row=6+i, column=j)._style = ws.cell(row=6, column=j)._style
 
-            ws.cell(row=6+i, column=2).value = i+1
-            ws.cell(row=6+i, column=3).value = pdf_names[i]
-            ws.cell(row=6+i, column=4).value = pdf_pages[i]
-            ws.cell(row=6+i, column=5).value = pdf_size[i]
-            ws.cell(row=6+i, column=6).value = "Blanco y negro"
+        # Insert data of PDF_info
+        ws.cell(row=6+i, column=2).value = i+1
+        ws.cell(row=6+i, column=3).value = pdf_names[i]
+        ws.cell(row=6+i, column=4).value = pdf_pages[i]
+        ws.cell(row=6+i, column=5).value = pdf_size[i]
+        ws.cell(row=6+i, column=6).value = "Blanco y negro"
+        ws.cell(row=6+i, column=7).value = "=M"+str((6+i))
+
+        # Put formulas to calculate the price
+        ws.cell(row=6+i, column=12).value = "=J"+str((6+i))+"*D"+str((6+i))+"+K"+str((6+i))
+        ws.cell(row=6+i, column=13).value = "=ROUND(L"+str((6+i))+", 0)"
+
+        #add data validation
+        dv_size =DataValidation(type="list", formula1='"Carta, Medio oficio, Oficio"')
+        dv_Color = DataValidation(type="list", formula1='"Blanco y negro, Colores"')
+        ws.add_data_validation(dv_size)
+        ws.add_data_validation(dv_Color)
+        dv_size.add(ws.cell(row=6+i, column=5))
+        dv_Color.add(ws.cell(row=6+i, column=6))
+
+
+    # Make all the final calculations
+    ws.cell(row=items+6, column=7).value = "=SUM(G6:G"+str(items+5)+")"
+    ws.cell(row=items+8, column=7).value = "=ROUND(G"+str(items+6)+"*G"+str(items+7)+", 0)"
+    ws.cell(row=items+9, column=7).value = "=G" + str(items + 6) + "-G" + str(items+8)
 
 #Open a excel file
 wb = openpyxl.load_workbook(r"D:\Proyectos Programación\Cotizaciones\Plantilla.xlsx")
